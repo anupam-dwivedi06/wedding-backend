@@ -48,10 +48,13 @@ app.use(async (req, res, next) => {
 // 3. Admin Login Route
 app.post('/api/login', (req, res) => {
   const { password } = req.body;
+  console.log('Password', password);
   
   if (password === process.env.ADMIN_PASSWORD) {
+    console.log('evn password', process.env.ADMIN_PASSWORD);
     // Generates a token valid for 2 hours
     const token = jwt.sign({ role: 'admin' }, process.env.JWT_SECRET, { expiresIn: '2h' });
+    console.log('token', token);
     return res.json({ token });
   }
   
