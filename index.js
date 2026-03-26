@@ -19,6 +19,10 @@ app.use(cors({
   ]
 }));
 
+app.get('/', (req, res) => {
+  res.send('Wedding Backend API is Live! 🚀');
+});
+
 app.use(express.json());
 
 // 2. MongoDB connection (Optimized for Serverless)
