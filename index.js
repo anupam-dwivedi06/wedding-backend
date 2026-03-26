@@ -1,64 +1,70 @@
-// import express from 'express';
-// import cors from 'cors';
-// import mongoose from 'mongoose';
-// import dotenv from 'dotenv';
-// import inquiryRoutes from './api/form.js'; // Import your route file
-
-// dotenv.config();
-
-// const app = express();
-// const PORT = process.env.PORT || 5000;
-
-// // 1. Middleware
-// app.use(cors()); // For development, you can leave it empty to allow all
-// app.use(express.json());
-
-// // 2. Database Connection (CRITICAL: You need this to save data)
-// mongoose.connect(process.env.MONGO_URI)
-//   .then(() => console.log('✅ MongoDB connected'))
-//   .catch((err) => console.error('❌ MongoDB connection error:', err));
-
-// // 3. Routes
-// // This mounts your form logic at http://localhost:5000/api/inquiries
-// app.use('/api/form', inquiryRoutes);
-
-// app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
-
 import express from 'express';
 import cors from 'cors';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
+import jwt from 'jsonwebtoken';
 import inquiryRoutes from './api/form.js';
 
 dotenv.config();
 
 const app = express();
 
+// 1. CORS Configuration
 app.use(cors({
   origin: [
     'https://www.shagunutsav.in',
-    'wedding-khaki-iota.vercel.app'
-
+    'https://wedding-khaki-iota.vercel.app',
+    'http://localhost:3000', // Added for local React testing
+    'http://localhost:5173'  // Added for Vite local testing
   ]
 }));
+
 app.use(express.json());
 
-// MongoDB connection (cached for serverless)
+// 2. MongoDB connection (Optimized for Serverless)
 let isConnected = false;
 const connectDB = async () => {
   if (isConnected) return;
-  await mongoose.connect(process.env.MONGO_URI);
-  isConnected = true;
-  console.log('✅ MongoDB connected');
+  try {
+    // These options ensure stable connection in newer Mongoose versions
+    await mongoose.connect(process.env.MONGO_URI);
+    isConnected = true;
+    console.log('✅ MongoDB connected');
+  } catch (err) {
+    console.error('❌ MongoDB Connection Error:', err);
+  }
 };
 
-// Run DB connection before every request
+// Middleware to ensure DB is connected before handling routes
 app.use(async (req, res, next) => {
   await connectDB();
   next();
 });
 
+// 3. Admin Login Route
+app.post('/api/login', (req, res) => {
+  const { password } = req.body;
+  
+  if (password === process.env.ADMIN_PASSWORD) {
+    // Generates a token valid for 2 hours
+    const token = jwt.sign({ role: 'admin' }, process.env.JWT_SECRET, { expiresIn: '2h' });
+    return res.json({ token });
+  }
+  
+  res.status(401).json({ error: "Unauthorized: Incorrect password" });
+});
+
+// 4. Form Routes
 app.use('/api/form', inquiryRoutes);
 
-// ✅ This is the key change for Vercel
+// 5. LOCAL STARTUP LOGIC 
+// This allows 'npm start' to work on your computer
+if (process.env.NODE_ENV !== 'production') {
+  const PORT = process.env.PORT || 5000;
+  app.listen(PORT, () => {
+    console.log(`🚀 Local Server running on http://localhost:${PORT}`);
+  });
+}
+
+// Required for Vercel deployment
 export default app;
